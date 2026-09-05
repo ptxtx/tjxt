@@ -20,4 +20,12 @@ public interface ILearningLessonService extends IService<LearningLesson> {
     void addUserLessons(Long userId, List<Long> courseIds);
 
     PageDTO<LearningLessonVO> queryMyLessons(PageQuery query);
+
+    void deleteCourseFromLesson(Long userId, Long courseId);
+
+    Long isLessonValid(Long courseId);
+
+    LearningLessonVO queryLessonByCourseId(Long courseId);
+
+    Integer countLearningLessonByCourse(Long courseId);
 }
