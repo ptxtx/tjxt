@@ -10,5 +10,5 @@ import java.util.Set;
 @FeignClient(value = "remark-service", fallbackFactory = RemarkClientFallback.class)
 public interface RemarkClient {
     @GetMapping("/likes/list")
-    Set<Long> isBizLiked(@RequestParam("bizIds") Iterable<Long> bizIds);
+    Set<Long> isBizLiked(@RequestParam("bizIds") Iterable<Long> bizIds);//发请求的格式都一样 只要是Iterable
 }
