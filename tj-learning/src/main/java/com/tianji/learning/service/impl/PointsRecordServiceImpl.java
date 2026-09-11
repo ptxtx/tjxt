@@ -4,14 +4,19 @@ import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.tianji.common.utils.CollUtils;
 import com.tianji.common.utils.DateUtils;
 import com.tianji.common.utils.UserContext;
+import com.tianji.learning.constants.RedisConstants;
 import com.tianji.learning.domain.po.PointsRecord;
 import com.tianji.learning.domain.vo.PointsStatisticsVO;
 import com.tianji.learning.enums.PointsRecordType;
 import com.tianji.learning.mapper.PointsRecordMapper;
 import com.tianji.learning.service.IPointsRecordService;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
+import lombok.RequiredArgsConstructor;
+import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
@@ -24,7 +29,9 @@ import java.util.List;
  * @author author
  */
 @Service
+@RequiredArgsConstructor
 public class PointsRecordServiceImpl extends ServiceImpl<PointsRecordMapper, PointsRecord> implements IPointsRecordService {
+    private final StringRedisTemplate redisTemplate;
     @Override
     public void addPointsRecord(Long userId, int points, PointsRecordType type) {
         int maxPoints = type.getMaxPoints();
@@ -49,6 +56,10 @@ public class PointsRecordServiceImpl extends ServiceImpl<PointsRecordMapper, Poi
         pointsRecord.setUserId(userId);
         pointsRecord.setType(type);
         save(pointsRecord);
+
+        //4.累积积分数据到Redis的sortedset中
+        String key=RedisConstants.POINTS_BOARD_KEY_PREFIX+LocalDate.now().format(DateUtils.POINTS_BOARD_SUFFIX_FORMATTER);
+        redisTemplate.opsForZSet().incrementScore(key,userId.toString(),actualPoints);
     }
 
     private int queryUserPointsByTypeAndDate(Long userId, PointsRecordType type, LocalDateTime begin, LocalDateTime end) {

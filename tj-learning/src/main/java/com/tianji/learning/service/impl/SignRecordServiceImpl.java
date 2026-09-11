@@ -30,7 +30,7 @@ public class SignRecordServiceImpl implements ISignRecordService {
         Long userId = UserContext.getUser();
         //1.签到
         LocalDate now = LocalDate.now();
-        String key= RedisConstants.SIGN_RECORD_KEY_PREFIX+userId+":"+ now.format(DateUtils.SIGN_DATE_SUFFIX_FORMATTER);//格式化器在common下提前定义
+        String key= RedisConstants.SIGN_RECORD_KEY_PREFIX+userId+ now.format(DateUtils.SIGN_DATE_SUFFIX_FORMATTER);//格式化器在common下提前定义
         int offset = now.getDayOfMonth() - 1;
         Boolean b = redisTemplate.opsForValue().setBit(key, offset, true);
         //还要防止重复签到！！！ 返回1则代表签过！！
@@ -89,7 +89,7 @@ public class SignRecordServiceImpl implements ISignRecordService {
         int dayOfMonth = now.getDayOfMonth();
         // 3.拼接key
         String key = RedisConstants.SIGN_RECORD_KEY_PREFIX
-                + userId+":"
+                + userId
                 + now.format(DateUtils.SIGN_DATE_SUFFIX_FORMATTER);
         // 4.读取
         List<Long> result = redisTemplate.opsForValue()
