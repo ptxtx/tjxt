@@ -12,6 +12,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 
+import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -36,7 +37,10 @@ public class Top10ServiceImpl implements Top10Service {
         Object originData = redisTemplate.opsForValue().get(key);
         // 2.1.数据判空
         if (originData == null) {
-            return new Top10DataVO();
+            Top10DataVO vo = new Top10DataVO();
+            vo.setHot(Collections.emptyList());
+            vo.setHotSales(Collections.emptyList());
+            return vo;
         }
         // 3.数据转换成课程信息
         List<CourseInfo> data = JsonUtils.toList(originData.toString(), CourseInfo.class);
