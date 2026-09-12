@@ -33,10 +33,10 @@ public class MybatisConfig {
         PaginationInnerInterceptor paginationInnerInterceptor = new PaginationInnerInterceptor(DbType.MYSQL);
         paginationInnerInterceptor.setMaxLimit(200L);
         interceptor.addInnerInterceptor(paginationInnerInterceptor);
-        interceptor.addInnerInterceptor(innerInterceptor);
         if(innerInterceptor!=null) {
-            interceptor.addInnerInterceptor(new MyBatisAutoFillInterceptor());
+            interceptor.addInnerInterceptor(innerInterceptor);
         }
+        interceptor.addInnerInterceptor(new MyBatisAutoFillInterceptor());
         return interceptor;
     }
 }
