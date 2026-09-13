@@ -14,6 +14,7 @@ import org.springframework.stereotype.Service;
 import java.util.ArrayList;
 import java.util.List;
 
+import static com.tianji.promotion.constants.PromotionConstants.COUPON_CODE_MAP_KEY;
 import static com.tianji.promotion.constants.PromotionConstants.COUPON_CODE_SERIAL_KEY;
 
 /**
@@ -26,8 +27,10 @@ import static com.tianji.promotion.constants.PromotionConstants.COUPON_CODE_SERI
 @Service
 public class ExchangeCodeServiceImpl extends ServiceImpl<ExchangeCodeMapper, ExchangeCode> implements IExchangeCodeService {
 
+    private final StringRedisTemplate redisTemplate;
     private  BoundValueOperations<String, String> serialOps;//好处 从此以后 不用再指定key
     public ExchangeCodeServiceImpl(StringRedisTemplate redisTemplate) {
+        this.redisTemplate=redisTemplate;
         //Redis自增序列号 key都是同一个 所以这里用bound 直接绑定
        serialOps = redisTemplate.boundValueOps(COUPON_CODE_SERIAL_KEY);
     }
@@ -55,5 +58,11 @@ public class ExchangeCodeServiceImpl extends ServiceImpl<ExchangeCodeMapper, Exc
         }
         //3.保存到数据库
         saveBatch(list);
+    }
+
+    @Override
+    public boolean updateExchangeMark(long serialNum, boolean mark) {
+        Boolean b = redisTemplate.opsForValue().setBit(COUPON_CODE_MAP_KEY, serialNum, mark);
+        return (b !=null) && b;
     }
 }

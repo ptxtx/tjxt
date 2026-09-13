@@ -7,9 +7,11 @@ import com.tianji.promotion.domain.po.Coupon;
 import com.baomidou.mybatisplus.extension.service.IService;
 import com.tianji.promotion.domain.vo.CouponDetailVO;
 import com.tianji.promotion.domain.vo.CouponPageVO;
+import com.tianji.promotion.domain.vo.CouponVO;
 import com.tianji.promotion.query.CouponQuery;
 
 import javax.validation.Valid;
+import java.util.List;
 
 /**
  * <p>
@@ -29,4 +31,6 @@ public interface ICouponService extends IService<Coupon> {
     void deleteById(Long id);
 
     void beginIssue(@Valid CouponIssueFormDTO dto);
+
+    List<CouponVO> queryIssuingCoupon();
 }

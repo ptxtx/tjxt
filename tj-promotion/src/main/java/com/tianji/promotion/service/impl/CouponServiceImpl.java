@@ -9,28 +9,35 @@ import com.tianji.common.exceptions.BizIllegalException;
 import com.tianji.common.utils.BeanUtils;
 import com.tianji.common.utils.CollUtils;
 import com.tianji.common.utils.StringUtils;
+import com.tianji.common.utils.UserContext;
 import com.tianji.promotion.domain.dto.CouponFormDTO;
 import com.tianji.promotion.domain.dto.CouponIssueFormDTO;
 import com.tianji.promotion.domain.po.Coupon;
 import com.tianji.promotion.domain.po.CouponScope;
+import com.tianji.promotion.domain.po.UserCoupon;
 import com.tianji.promotion.domain.vo.CouponDetailVO;
 import com.tianji.promotion.domain.vo.CouponPageVO;
 import com.tianji.promotion.domain.vo.CouponScopeVO;
+import com.tianji.promotion.domain.vo.CouponVO;
 import com.tianji.promotion.enums.CouponStatus;
 import com.tianji.promotion.enums.ObtainType;
+import com.tianji.promotion.enums.UserCouponStatus;
 import com.tianji.promotion.mapper.CouponMapper;
 import com.tianji.promotion.query.CouponQuery;
 import com.tianji.promotion.service.ICouponScopeService;
 import com.tianji.promotion.service.ICouponService;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.tianji.promotion.service.IExchangeCodeService;
+import com.tianji.promotion.service.IUserCouponService;
 import lombok.RequiredArgsConstructor;
 import org.hibernate.validator.constraints.pl.REGON;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 import static com.tianji.promotion.enums.CouponStatus.*;
@@ -49,6 +56,7 @@ public class CouponServiceImpl extends ServiceImpl<CouponMapper, Coupon> impleme
     private final CategoryCache categoryCache;
     private final ICouponScopeService scopeService;
     private final IExchangeCodeService codeService;
+    private final IUserCouponService userCouponService;
     @Override
     @Transactional//有一张中间表存储信息 所以开启事务
     public void saveCoupon(CouponFormDTO dto) {
@@ -171,5 +179,51 @@ public class CouponServiceImpl extends ServiceImpl<CouponMapper, Coupon> impleme
             coupon.setIssueEndTime(c.getIssueEndTime());
             codeService.asyncGenerateCode(coupon);
         }
+    }
+
+    @Override
+    public List<CouponVO> queryIssuingCoupon() {
+        //查询发放中优惠券列表（发放是手动发放）
+        List<Coupon> coupons = lambdaQuery()
+                .eq(Coupon::getStatus, ISSUING)
+                .eq(Coupon::getObtainWay, ObtainType.PUBLIC)
+                .list();
+        if(CollUtils.isEmpty(coupons)){
+            return CollUtils.emptyList();
+        }
+        //查询UserCoupon表 查询当前用户已经领取的优惠券的信息(是否可以领取、使用）
+        //查询当前用户已经领取的优惠券信息（couponId userId）
+        List<Long> couponIds = coupons.stream().map(Coupon::getId).collect(Collectors.toList());
+        List<UserCoupon> userCoupons = userCouponService.lambdaQuery()
+                .eq(UserCoupon::getUserId, UserContext.getUser())
+                .in(UserCoupon::getCouponId, couponIds)
+                .list();
+        //统计当前用户对优惠券的已经领取的数量
+        Map<Long, Long> issuedMap = userCoupons.stream().collect(Collectors.groupingBy(UserCoupon::getCouponId, Collectors.counting()));
+        //统计当前用户已经领取优惠券但没使用的数量
+        Map<Long, Long> unusedMap = userCoupons.stream()
+                .filter(u -> u.getStatus() == UserCouponStatus.UNUSED)
+                .collect(Collectors.groupingBy(UserCoupon::getCouponId, Collectors.counting()));
+
+
+        //封装VO结果
+        List<CouponVO> vos =new ArrayList<>(coupons.size());
+        for (Coupon c : coupons) {
+            CouponVO vo = BeanUtils.copyBean(c, CouponVO.class);
+
+            //是否可以领取：已被领取数量<优惠券数量、当前用户已经领取数量小于每人限领
+            vo.setAvailable(
+                    c.getIssueNum()<c.getTotalNum()
+                    &&issuedMap.getOrDefault(c.getId(),0L)<c.getUserLimit()
+            );
+
+            //是否可以使用：已领并且未使用
+            vo.setReceived(
+                    unusedMap.getOrDefault(c.getId(), 0L) > 0
+            );
+
+            vos.add(vo);
+        }
+        return List.of();
     }
 }
