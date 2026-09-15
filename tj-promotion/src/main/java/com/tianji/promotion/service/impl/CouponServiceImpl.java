@@ -188,6 +188,7 @@ public class CouponServiceImpl extends ServiceImpl<CouponMapper, Coupon> impleme
         if(coupon.getObtainWay()== ObtainType.ISSUE&&coupon.getStatus()== DRAFT){
             coupon.setIssueEndTime(c.getIssueEndTime());
             codeService.asyncGenerateCode(coupon);
+
         }
     }
 

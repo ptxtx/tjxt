@@ -6,4 +6,5 @@ import lombok.Data;
 public class UserCouponDTO {
     private Long userId;
     private Long couponId;
+    private Integer serialNum;
 }

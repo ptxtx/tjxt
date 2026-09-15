@@ -141,6 +141,15 @@ public class UserCouponServiceImpl extends ServiceImpl<UserCouponMapper, UserCou
             //新增user-coupon
             saveUserCoupon(uc.getUserId(), coupon);
 
+        // 4.更新兑换码状态
+        if (uc.getSerialNum() != null) {
+            codeService.lambdaUpdate()
+                    .set(ExchangeCode::getUserId, uc.getUserId())
+                    .set(ExchangeCode::getStatus, ExchangeCodeStatus.USED)
+                    .eq(ExchangeCode::getId, uc.getSerialNum())
+                    .update();
+        }
+
     }
 
     private void saveUserCoupon(Long userId, Coupon coupon) {
@@ -171,33 +180,66 @@ public class UserCouponServiceImpl extends ServiceImpl<UserCouponMapper, UserCou
         if(exchanged){
             throw new BizIllegalException("兑换码已兑换过！");
         }
-        try {
-            //3.查询兑换码（数据库）
-            ExchangeCode exchangeCode = codeService.getById(serialNum);
-            if(exchangeCode==null){
+//        try {
+//            //3.查询兑换码（数据库）
+//            ExchangeCode exchangeCode = codeService.getById(serialNum);
+//            if(exchangeCode==null){
+//                throw new BizIllegalException("兑换码不存在！");
+//            }
+//            //4.是否已经过期
+//            LocalDateTime now = LocalDateTime.now();
+//            if(now.isAfter(exchangeCode.getExpiredTime())){
+//                throw new BizIllegalException("兑换码已过期！");
+//            }
+//            //5.校验限领数量
+//            //6.更新优惠券已经发放的总数量
+//            Coupon coupon = couponMapper.selectById(exchangeCode.getExchangeTargetId());
+//            Long userId = UserContext.getUser();
+//           // checkAndCreateUserCoupon(userId,coupon);
+//            //7.新增一个用户券
+//            //8.更新兑换码状态（Redis 数据库双写）SETBIT KEY OFFSET VALUE--现在Redis直接在第一步就写了
+//            codeService.lambdaUpdate()
+//                    .set(ExchangeCode::getStatus, ExchangeCodeStatus.USED)
+//                    .set(ExchangeCode::getUserId,userId)
+//                    .eq(ExchangeCode::getId,serialNum)
+//                    .update();
+//        } catch (Exception e) {
+//            //重置兑换的标记 0
+//            codeService.updateExchangeMark(serialNum,false);
+//            throw e;//捕获了还要抛出
+//        }
+        try{
+            //查询兑换码对应的优惠券id
+            Long couponId=codeService.exchangeTargetId(serialNum);
+            if(couponId==null){
                 throw new BizIllegalException("兑换码不存在！");
             }
-            //4.是否已经过期
+            Coupon coupon = couponMapper.selectById(couponId);
             LocalDateTime now = LocalDateTime.now();
-            if(now.isAfter(exchangeCode.getExpiredTime())){
-                throw new BizIllegalException("兑换码已过期！");
+            if(now.isAfter(coupon.getIssueEndTime())||now.isBefore(coupon.getIssueBeginTime())){
+                throw new BizIllegalException("优惠券活动未开始或已结束！");
             }
-            //5.校验限领数量
-            //6.更新优惠券已经发放的总数量
-            Coupon coupon = couponMapper.selectById(exchangeCode.getExchangeTargetId());
             Long userId = UserContext.getUser();
-           // checkAndCreateUserCoupon(userId,coupon);
-            //7.新增一个用户券
-            //8.更新兑换码状态（Redis 数据库双写）SETBIT KEY OFFSET VALUE--现在Redis直接在第一步就写了
-            codeService.lambdaUpdate()
-                    .set(ExchangeCode::getStatus, ExchangeCodeStatus.USED)
-                    .set(ExchangeCode::getUserId,userId)
-                    .eq(ExchangeCode::getId,serialNum)
-                    .update();
-        } catch (Exception e) {
-            //重置兑换的标记 0
-            codeService.updateExchangeMark(serialNum,false);
-            throw e;//捕获了还要抛出
+            String key=PromotionConstants.USER_COUPON_CACHE_KEY_PREFIX+couponId;
+            Long count = redisTemplate.opsForHash().increment(key, userId.toString(), 1);
+            if(count>coupon.getUserLimit()){
+                throw new BizIllegalException("超出限领数量！");
+            }
+
+            //发送MQ消息通知
+            UserCouponDTO uc = new UserCouponDTO();
+            uc.setCouponId(couponId);
+            uc.setUserId(userId);
+            uc.setSerialNum((int) serialNum);
+            mqHelper.send(
+                    MqConstants.Exchange.PROMOTION_EXCHANGE,
+                    MqConstants.Key.COUPON_RECEIVE,
+                    uc
+            );
+        }catch(Exception e){
+            codeService.updateExchangeMark(serialNum, false);
+            throw e;
         }
+
     }
 }

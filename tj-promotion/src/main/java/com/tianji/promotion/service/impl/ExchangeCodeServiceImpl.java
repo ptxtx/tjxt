@@ -1,5 +1,6 @@
 package com.tianji.promotion.service.impl;
 
+import com.tianji.common.utils.CollUtils;
 import com.tianji.promotion.domain.po.Coupon;
 import com.tianji.promotion.domain.po.ExchangeCode;
 import com.tianji.promotion.mapper.ExchangeCodeMapper;
@@ -13,9 +14,10 @@ import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 
-import static com.tianji.promotion.constants.PromotionConstants.COUPON_CODE_MAP_KEY;
-import static com.tianji.promotion.constants.PromotionConstants.COUPON_CODE_SERIAL_KEY;
+import static com.tianji.promotion.constants.PromotionConstants.*;
+
 
 /**
  * <p>
@@ -58,11 +60,26 @@ public class ExchangeCodeServiceImpl extends ServiceImpl<ExchangeCodeMapper, Exc
         }
         //3.保存到数据库
         saveBatch(list);
+
+        redisTemplate.opsForZSet().add(COUPON_RANGE_KEY,coupon.getId().toString(),maxSerialNum);
     }
 
     @Override
     public boolean updateExchangeMark(long serialNum, boolean mark) {
         Boolean b = redisTemplate.opsForValue().setBit(COUPON_CODE_MAP_KEY, serialNum, mark);
         return (b !=null) && b;
+    }
+
+    @Override
+    public Long exchangeTargetId(long serialNum) {
+        //查询score值比当前序列号大的第一个优惠券
+        Set<String> results = redisTemplate.opsForZSet().rangeByScore(
+                COUPON_RANGE_KEY, serialNum, serialNum + 5000, 0L, 1L
+        );
+        if(CollUtils.isEmpty(results)){
+            return null;
+        }
+        String next = results.iterator().next();
+        return Long.parseLong(next);
     }
 }

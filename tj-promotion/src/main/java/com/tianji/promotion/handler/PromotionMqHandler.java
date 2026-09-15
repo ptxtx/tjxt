@@ -24,7 +24,6 @@ public class PromotionMqHandler {
             )
     )
     public void listenCouponReceiveMessage(UserCouponDTO uc){
-
         userCouponService.checkAndCreateUserCoupon(uc);
     }
 }
