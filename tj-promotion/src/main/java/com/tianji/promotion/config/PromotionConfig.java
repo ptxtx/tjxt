@@ -33,4 +33,21 @@ public class PromotionConfig {
     public MyLockAspect myLockAspect(RedissonClient redissonClient){
         return new MyLockAspect(redissonClient);
     }
+
+    @Bean
+    public Executor discountSolutionExecutor(){
+        ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
+        //核心线程池大小
+        executor.setCorePoolSize(5);
+        //2.最大线程池大小
+        executor.setMaxPoolSize(8);
+        //3.队列大小
+        executor.setQueueCapacity(2000);
+        //4.线程名称
+        executor.setThreadNamePrefix("discount-solution-calculator");
+        //5.拒绝策略
+        executor.setRejectedExecutionHandler(new ThreadPoolExecutor.AbortPolicy());
+        executor.initialize();
+        return executor;
+    }
 }

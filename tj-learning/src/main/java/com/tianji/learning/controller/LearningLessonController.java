@@ -31,7 +31,7 @@ public class LearningLessonController {
 
     private final ILearningLessonService learningLessonService;
 
-    @GetMapping("page")
+    @GetMapping("/page")
     @ApiOperation("分页查询我的课表")
     public PageDTO<LearningLessonVO> queryMyLessons(PageQuery query){
         return learningLessonService.queryMyLessons(query);

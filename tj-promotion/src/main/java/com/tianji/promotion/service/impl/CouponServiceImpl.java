@@ -244,7 +244,7 @@ public class CouponServiceImpl extends ServiceImpl<CouponMapper, Coupon> impleme
 
             vos.add(vo);
         }
-        return List.of();
+        return vos;
     }
 
     @Override
